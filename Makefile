@@ -1,7 +1,7 @@
 #executable
 TARGET = dla_cpu
 #source files
-SRC = main.cu lodepng.cpp
+SRC = main.cu lodepng.cpp support.cu
 
 all: $(TARGET)
 

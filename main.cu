@@ -3,6 +3,8 @@
 #include <time.h>
 //found open source code for making pngs
 #include "lodepng.h"
+//took Dr. Schubert's support for the timings
+#include "support.h"
 
 #define N 201       //odd so there is a center
 #define NUM_PARTICLES 350000
