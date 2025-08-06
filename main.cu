@@ -19,6 +19,18 @@ int in_bounds(int x, int y) {
 }
 
 //check if cell is adjacent to cluster
+int is_adjacent_to_cluster(int x, int y) {
+    //check any next step for any cluster
+    for (int d = 0; d < 4; d++) {
+        int nx = x + dx[d];
+        int ny = y + dy[d];
+        if (in_bounds(nx, ny) && grid[nx][ny] == 1) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 
 //randomly place new particle at border
 void random_border_position(int* x, int* y) {
@@ -62,13 +74,17 @@ int main() {
 
             //break if it gets out of bounds
             if (!in_bounds(x, y)) {
-                break;                //particle escaped
+                break;                  //particle escaped
             }
 
             //check if it is adjacent to cluster
-            
+            if (is_adjacent_to_cluster(x, y)) {
+                grid[x, y] = 1;
+                break;                  //the cluster grows!
+            }
 
             //kill the unlucky particles (prevent infinite loops)
+
 
         }
     }
