@@ -6,12 +6,14 @@
 //took Dr. Schubert's support for the timings
 #include "support.h"
 
+//kernel function
+void dla(int* d_grid, int N, int NUM_PARTICLES, int MAX_STEPS, unsigned long seed);
 
 //test case paramters
 const int test_N[4]         = {101, 201, 401, 801};       //odd so there is a center
 const int test_particles[4] = {25000, 300000, 2000000, 12000000};
 const int test_maxsteps[4] = {50000, 100000, 200000, 500000};
-const char* test_filenames[4] = {"dla_cpu_101.png", "dla_cpu_201.png", "dla_cpu_401.png", "dla_cpu_801.png"};
+const char* test_filenames[4] = {"dla_gpu_101.png", "dla_gpu_201.png", "dla_gpu_401.png", "dla_gpu_801.png"};
 
 //direction vectors for random walk = dx*i_hat + dy*j_hat
 int dx[4] = {0, 0, 1, -1};
@@ -72,7 +74,7 @@ int main() {
         
         //malloc grid
         //2D grid: 0 is empty, 1 is seed, rest of all real numbers = particle #
-        int** grid = (int**)malloc(N * sizeof(int*));
+        int* grid = (int*)calloc(N*N, sizeof(int)); // 1D grid for device/host
         for (int i = 0; i < N; i++) {
             grid[i] = (int*)calloc(N, sizeof(int));
         }
