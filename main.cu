@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+//found open source code for making pngs
+#include "lodepng.h"
 
 #define N 201       //odd so there is a center
 #define NUM_PARTICLES 500
@@ -65,12 +67,14 @@ int main() {
         
         //start with a particle on edge
         random_border_position(&x, &y);
+        int steps = 0;
 
         while (1) {
             //particle randomly moves
-            int d = rand % 4;
+            int d = rand() % 4;
             x += dx[d];
             y += dy[d];
+            steps++;
 
             //break if it gets out of bounds
             if (!in_bounds(x, y)) {
@@ -79,18 +83,21 @@ int main() {
 
             //check if it is adjacent to cluster
             if (is_adjacent_to_cluster(x, y)) {
-                grid[x, y] = 1;
+                grid[x][y] = 1;
                 break;                  //the cluster grows!
             }
 
             //kill the unlucky particles (prevent infinite loops)
-
+            if (steps > 10000) {
+                break;
+            }
 
         }
     }
 
     //print output
-
+    unsigned char* image = (unsigned char*)malloc(N * N * 4);
+    
 
 
     return 0;
