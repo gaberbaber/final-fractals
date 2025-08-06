@@ -21,12 +21,32 @@ int grid[N][N];
 
 
 
+
 int main() {
 
     //seed at the center
+    int cx = N/2, cy = N/2;
+    grid[cx][cy] = 1;
 
+    //on every particle
+    for (int p = 0; p < NUM_PARTICLES; p++) {
+        int x, y;
+        
+        //start with a particle on edge
 
+        while (1) {
+            //particle randomly moves
 
+            //break if it gets out of bounds
+
+            //check if it is adjacent to cluster
+
+            //kill the unlucky particles (prevent infinite loops)
+
+        }
+    }
+
+    //print output
 
 
 
