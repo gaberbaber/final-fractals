@@ -56,6 +56,8 @@ void random_border_position(int* x, int* y) {
 
 
 int main() {
+    //seed rng for varied output
+    srand(time(NULL));
 
     //seed at the center
     int cx = N/2, cy = N/2;
@@ -95,9 +97,39 @@ int main() {
         }
     }
 
-    //print output
+    //PRINT OUTPUT
+    //each pixel is 4 bytes: R, G, B, A
     unsigned char* image = (unsigned char*)malloc(N * N * 4);
     
+    for (int j = 0; j < N; j++) {
+        for (int i = 0; i < N; i++) {
+            int idx = 4 * (j * N + i);
+            if (grid[i][j]) {
+                //black pixel
+                image[idx+0] = 0;
+                image[idx+1] = 0;
+                image[idx+2] = 0;
+                image[idx+3] = 255;
+            } else {
+                //white pixel
+                image[idx+0] = 255;
+                image[idx+1] = 255;
+                image[idx+2] = 255;
+                image[idx+3] = 255;
+            }
+        }
+    }
+    
+    //lodepng to make dla.png
+    unsigned error = lodepng_encode32_file("dla.png", image, N, N);
+    if (error) {
+        printf("PNG Encoder error %u: %s\n", error, lodepng_error_text(error));
+    } else {
+        printf("DLA PNG written to dla.png\n");
+    }
+
+    //free mem
+    free(image);
 
 
     return 0;
