@@ -5,10 +5,11 @@
 #include "lodepng.h"
 
 #define N 201       //odd so there is a center
-#define NUM_PARTICLES 250000
+#define NUM_PARTICLES 350000
 
 
-//2D grid: 0 is empty, 1 is part of the cluster
+//2D grid: xxxxx(0 is empty, 1 is part of the cluster)xxxxx
+// ^^^^^^^old logic; new: 0 is empty, 1 is seed, rest of all real numbers = particle #
 int grid[N][N];
 
 //direction vectors for random walk = dx*i_hat + dy*j_hat
@@ -26,7 +27,7 @@ int is_adjacent_to_cluster(int x, int y) {
     for (int d = 0; d < 4; d++) {
         int nx = x + dx[d];
         int ny = y + dy[d];
-        if (in_bounds(nx, ny) && grid[nx][ny] == 1) {
+        if (in_bounds(nx, ny) && grid[nx][ny] != 0) {
             return 1;
         }
     }
@@ -85,7 +86,7 @@ int main() {
 
             //check if it is adjacent to cluster
             if (is_adjacent_to_cluster(x, y)) {
-                grid[x][y] = 1;
+                grid[x][y] = p + 1;     //records what # particle sticks
                 break;                  //the cluster grows!
             }
 
@@ -104,17 +105,42 @@ int main() {
     for (int j = 0; j < N; j++) {
         for (int i = 0; i < N; i++) {
             int idx = 4 * (j * N + i);
-            if (grid[i][j]) {
-                //black pixel
-                image[idx+0] = 0;
-                image[idx+1] = 0;
-                image[idx+2] = 0;
-                image[idx+3] = 255;
-            } else {
-                //white pixel
+            int v = grid[i][j];
+
+            if (v == 0) {
+                //empty: white pixel
                 image[idx+0] = 255;
                 image[idx+1] = 255;
                 image[idx+2] = 255;
+                image[idx+3] = 255;
+            } else {
+                //map number of particles to rainbow
+                float t = (float)(v-1) / NUM_PARTICLES;
+                //function for rainbow
+                float r, g, b;
+                //hue from 0 (red) to .75 (violet)
+                float hue = 0.75 * (1.0f - t); //red to violet
+                //convert hue to rgb
+                int h = (int)(hue * 6);
+                float f = hue * 6 - h;
+                float q = 1 - f;
+                switch (h % 6) {
+                    case 0: r = 1; g = f; b = 0;
+                            break;
+                    case 1: r = q; g = 1; b = 0;
+                            break;
+                    case 2: r = 0; g = 1; b = f;
+                            break;
+                    case 3: r = 0; g = q; b = 1;
+                            break;
+                    case 4: r = f; g = 0; b = 1;
+                            break;
+                    case 5: r = 1; g = 0; b = q;
+                            break;
+                }
+                image[idx+0] = (unsigned char)(r * 255);
+                image[idx+1] = (unsigned char)(g * 255);
+                image[idx+2] = (unsigned char)(b * 255);
                 image[idx+3] = 255;
             }
         }
