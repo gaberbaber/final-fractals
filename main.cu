@@ -4,8 +4,8 @@
 //found open source code for making pngs
 #include "lodepng.h"
 
-#define N 201       //odd so there is a center
-#define NUM_PARTICLES 500
+#define N 101       //odd so there is a center
+#define NUM_PARTICLES 1000
 
 
 //2D grid: 0 is empty, 1 is part of the cluster
@@ -100,7 +100,7 @@ int main() {
     //PRINT OUTPUT
     //each pixel is 4 bytes: R, G, B, A
     unsigned char* image = (unsigned char*)malloc(N * N * 4);
-    
+
     for (int j = 0; j < N; j++) {
         for (int i = 0; i < N; i++) {
             int idx = 4 * (j * N + i);
