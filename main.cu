@@ -4,8 +4,8 @@
 //found open source code for making pngs
 #include "lodepng.h"
 
-#define N 101       //odd so there is a center
-#define NUM_PARTICLES 1000
+#define N 201       //odd so there is a center
+#define NUM_PARTICLES 250000
 
 
 //2D grid: 0 is empty, 1 is part of the cluster
