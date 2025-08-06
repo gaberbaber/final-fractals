@@ -66,6 +66,10 @@ int main() {
     int cx = N/2, cy = N/2;
     grid[cx][cy] = 1;
 
+    Timer timer;
+    //start timer
+    startTime(&timer);
+
     //for every particle
     for (int p = 0; p < NUM_PARTICLES; p++) {
         int x, y;
@@ -93,12 +97,16 @@ int main() {
             }
 
             //kill the unlucky particles (prevent infinite loops)
-            if (steps > 10000) {
+            if (steps > 100000) {
                 break;
             }
 
         }
     }
+
+    //stop timer
+    stopTime(&timer);
+    printf("CPU DLA simulation time: %f s\n", elapsedTime(timer));
 
     //PRINT OUTPUT
     //each pixel is 4 bytes: R, G, B, A
