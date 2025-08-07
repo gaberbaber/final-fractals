@@ -1,14 +1,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <cuda_runtime.h>
 //found open source code for making pngs
 #include "lodepng.h"
 //took Dr. Schubert's support for the timings
 #include "support.h"
 
+//error check
+#define CUDA_CHECK(call) do { \
+  cudaError_t _e = (call); \
+  if (_e != cudaSuccess) { \
+    fprintf(stderr, "CUDA error %s:%d: %s\n", __FILE__, __LINE__, cudaGetErrorString(_e)); \
+    exit(1); \
+  } \
+} while (0)
+
 
 //kernel function
-void dla(int* d_grid, int N, int NUM_PARTICLES, int MAX_STEPS, unsigned long seed);
+void dla(int* d_grid, int N, int NUM_PARTICLES, int MAX_STEPS, unsigned long long seed);
 
 //test case paramters
 const int test_N[4]         = {101, 201, 401, 801};       //odd so there is a center
@@ -18,6 +28,18 @@ const char* test_filenames[4] = {"dla_gpu_101.png", "dla_gpu_201.png", "dla_gpu_
 
 int main() {
     
+    int devCount = 0;
+    CUDA_CHECK(cudaGetDeviceCount(&devCount));
+    printf("CUDA devices visible: %d\n", devCount);
+    if (devCount == 0) {
+    fprintf(stderr, "No CUDA device found.\n");
+    return 1;
+    }
+    cudaDeviceProp prop{};
+    CUDA_CHECK(cudaGetDeviceProperties(&prop, 0));
+    printf("Using device 0: %s (CC %d.%d)\n", prop.name, prop.major, prop.minor);
+    CUDA_CHECK(cudaSetDevice(0));
+
     //four test cases
     for (int test = 0; test < 4; test++) {
         int N = test_N[test];
@@ -27,14 +49,14 @@ int main() {
 
         printf("\n===== GPU DLA Test %d: N=%d, Particles=%d, MaxSteps=%d =====\n", test+1, N, NUM_PARTICLES, MAX_STEPS);
         
-        //grid host mem
+        //grid host mem (zeroed)
         int* h_grid = (int*)calloc(N*N, sizeof(int));
 
         //seed at the center
         h_grid[(N/2)*N + (N/2)] = 1;
 
         //grid device mem
-        int* d_grid;
+        int* d_grid = nullptr;
         cudaMalloc(&d_grid, N*N*sizeof(int));
         cudaMemcpy(d_grid, h_grid, N*N*sizeof(int), cudaMemcpyHostToDevice);
         
@@ -44,7 +66,7 @@ int main() {
         startTime(&timer);
 
         //launch cuda dla
-        dla(d_grid, N, NUM_PARTICLES, MAX_STEPS, time(NULL));
+        dla(d_grid, N, NUM_PARTICLES, MAX_STEPS, (unsigned long long)time(NULL));
         cudaDeviceSynchronize();
         stopTime(&timer);
         printf("GPU DLA simulation time for Test %d: %f s\n", test+1, elapsedTime(timer));
@@ -114,6 +136,7 @@ int main() {
         }
 
         //free mem
+        cudaFree(d_grid);
         free(image);
         free(h_grid);
 
