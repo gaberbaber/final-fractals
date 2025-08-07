@@ -6,6 +6,7 @@
 //took Dr. Schubert's support for the timings
 #include "support.h"
 
+
 //kernel function
 void dla(int* d_grid, int N, int NUM_PARTICLES, int MAX_STEPS, unsigned long seed);
 
@@ -15,54 +16,8 @@ const int test_particles[4] = {25000, 300000, 2000000, 12000000};
 const int test_maxsteps[4] = {50000, 100000, 200000, 500000};
 const char* test_filenames[4] = {"dla_gpu_101.png", "dla_gpu_201.png", "dla_gpu_401.png", "dla_gpu_801.png"};
 
-//direction vectors for random walk = dx*i_hat + dy*j_hat
-int dx[4] = {0, 0, 1, -1};
-int dy[4] = {1, -1, 0, 0};
-
-//check if cell is in bounds
-int in_bounds(int x, int y, int N) {
-    return (x >= 0 && x < N) && (y >= 0 && y < N);
-}
-
-//check if cell is adjacent to cluster
-int is_adjacent_to_cluster(int x, int y, int** grid, int N) {
-    //check any next step for any cluster
-    for (int d = 0; d < 4; d++) {
-        int nx = x + dx[d];
-        int ny = y + dy[d];
-        if (in_bounds(nx, ny, N) && grid[nx][ny] != 0) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-
-//randomly place new particle at border
-void random_border_position(int* x, int* y, int N) {
-    int edge = rand() % 4; 
-    switch (edge) {
-        case 0: *x = 0;             // top
-                *y = rand() % N;
-                break;
-        case 1: *x = N-1;           // bottom
-                *y = rand() % N;
-                break;
-        case 2: *x = rand() % N;    // left
-                *y = 0;
-                break;
-        case 3: *x = rand() % N;    // right
-                *y = N-1;
-                break;
-    }
-}
-
-
-
 int main() {
-    //seed rng for varied output
-    srand(time(NULL));
-
+    
     //four test cases
     for (int test = 0; test < 4; test++) {
         int N = test_N[test];
@@ -70,68 +25,52 @@ int main() {
         int MAX_STEPS = test_maxsteps[test];
         const char* outname = test_filenames[test];
 
-        printf("\n===== CPU DLA Test %d: N=%d, Particles=%d, MaxSteps=%d =====\n", test+1, N, NUM_PARTICLES, MAX_STEPS);
+        printf("\n===== GPU DLA Test %d: N=%d, Particles=%d, MaxSteps=%d =====\n", test+1, N, NUM_PARTICLES, MAX_STEPS);
         
-        //malloc grid
-        //2D grid: 0 is empty, 1 is seed, rest of all real numbers = particle #
-        int* grid = (int*)calloc(N*N, sizeof(int)); // 1D grid for device/host
-        for (int i = 0; i < N; i++) {
-            grid[i] = (int*)calloc(N, sizeof(int));
-        }
+        //grid host mem
+        int* h_grid = (int*)calloc(N*N, sizeof(int));
 
         //seed at the center
-        int cx = N/2, cy = N/2;
-        grid[cx][cy] = 1;
+        h_grid[(N/2)*N + (N/2)] = 1;
+
+        //grid device mem
+        int* d_grid;
+        cudaMalloc(&d_grid, N*N*sizeof(int));
+        cudaMemcpy(d_grid, h_grid, N*N*sizeof(int), cudaMemcpyHostToDevice);
+        
 
         Timer timer;
         //start timer
         startTime(&timer);
 
-        //for every particle
-        for (int p = 0; p < NUM_PARTICLES; p++) {
-            int x, y;
-            
-            //start with a particle on edge
-            random_border_position(&x, &y, N);
-            int steps = 0;
-
-            while (1) {
-                //particle randomly moves
-                int d = rand() % 4;
-                x += dx[d];
-                y += dy[d];
-                steps++;
-
-                //break if it gets out of bounds
-                if (!in_bounds(x, y, N)) {
-                    break;                  //particle escaped
-                }
-
-                //check if it is adjacent to cluster
-                if (is_adjacent_to_cluster(x, y, grid, N)) {
-                    grid[x][y] = p + 1;     //records what # particle sticks
-                    break;                  //the cluster grows!
-                }
-
-                //kill the unlucky particles (prevent infinite loops)
-                if (steps > MAX_STEPS) {
-                    break;
-                }
-
-            }
-        }
-
+        //launch cuda dla
+        dla(d_grid, N, NUM_PARTICLES, MAX_STEPS, time(NULL));
+        cudaDeviceSynchronize();
         stopTime(&timer);
-        printf("CPU DLA simulation time for Test %d: %f s\n", test+1, elapsedTime(timer));
+        printf("GPU DLA simulation time for Test %d: %f s\n", test+1, elapsedTime(timer));
 
-        //PRINT OUTPUT
+        //copy result
+        cudaMemcpy(h_grid, d_grid, N*N*sizeof(int), cudaMemcpyDeviceToHost);
+        
+        //seed check debug
+        printf("DEBUG: Center cell value after kernel: %d\n", h_grid[(N/2)*N + (N/2)]);
+        //cluster size check debug
+        int stuck_particles = 0;
+        for (int i = 0; i < N*N; ++i){
+            if (h_grid[i] != 0) stuck_particles++;
+        }
+        printf("DEBUG: Total nonzero (stuck) particles after kernel: %d\n", stuck_particles);
+
+
+
+        //PRINT OUTPUT (changed from main_cpu because 1D grid)
         //each pixel is 4 bytes: R, G, B, A
         unsigned char* image = (unsigned char*)malloc(N * N * 4);
 
         for (int j = 0; j < N; j++) {
             for (int i = 0; i < N; i++) {
                 int idx = 4 * (j * N + i);
-                int v = grid[i][j];
+                int v = h_grid[j*N + i];
 
                 if (v == 0) {
                     //empty: white pixel
@@ -166,7 +105,7 @@ int main() {
             }
         }
 
-        //lodepng to make dla_cpu_NNN.png
+        //lodepng to make dla_gpu_NNN.png
         unsigned error = lodepng_encode32_file(outname, image, N, N);
         if (error) {
             printf("PNG Encoder error %u: %s\n", error, lodepng_error_text(error));
@@ -176,10 +115,7 @@ int main() {
 
         //free mem
         free(image);
-        for (int i = 0; i < N; i++) {
-            free(grid[i]);
-        }
-        free(grid);
+        free(h_grid);
 
     }
 
