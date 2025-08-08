@@ -78,11 +78,14 @@ int main() {
         printf("DEBUG: Center cell value after kernel: %d\n", h_grid[(N/2)*N + (N/2)]);
         //cluster size check debug
         int stuck_particles = 0;
+        int max_v = 0;
         for (int i = 0; i < N*N; ++i){
-            if (h_grid[i] != 0) stuck_particles++;
+            int val = h_grid[i];
+            if (val != 0) stuck_particles++;
+            if (val > max_v) max_v = val;
         }
         printf("DEBUG: Total nonzero (stuck) particles after kernel: %d\n", stuck_particles);
-
+        printf("DEBUG: Max stick index (color scale): %d\n", max_v);
 
 
         //PRINT OUTPUT (changed from main_cpu because 1D grid)
@@ -101,12 +104,24 @@ int main() {
                     image[idx+2] = 255;
                     image[idx+3] = 255;
                 } else {
+                    
                     //map number of particles to rainbow
-                    float t = (float)(v-1) / NUM_PARTICLES;
+                    //float t = (float)(v-1) / NUM_PARTICLES;
+                    
+                    float t;
+                    if (max_v <= 1) {
+                        t = 0.0f;
+                    } else {
+                        t = (float)(v-1) / (float)(max_v - 1);
+                        if (t < 0) t = 0;
+                        if (t > 1) t = 1;
+                    }
+
                     //function for rainbow
                     float r, g, b;
                     //hue from 0 (red) to .75 (violet)
                     float hue = 0.75 * (1.0f - t); //red to violet
+                    
                     //convert hue to rgb
                     int h = (int)(hue * 6);
                     float f = hue * 6 - h;

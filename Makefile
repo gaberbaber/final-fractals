@@ -46,7 +46,14 @@ $(GPU_TARGET): $(GPU_OBJ)
 	$(NVCC) $(GPU_OBJ) -o $@ $(LD_FLAGS_GPU)
 
 # ------------ housekeeping ------------
+# make clean keeps PNGs; make superclean deletes pngs
 clean:
-	rm -f *.o $(CPU_TARGET) $(GPU_TARGET) dla_cpu_*.png dla_gpu_*.png
+	# build artifacts
+	rm -f *.o $(CPU_TARGET) $(GPU_TARGET) core a.out
+	# scheduler/job droppings (PBS/Torque/Slurm logs from mpprun/qsub)
+	rm -f $(GPU_TARGET).sh.* *.e[0-9]* *.o[0-9]* *.pe[0-9]* *.po[0-9]*
 
-.PHONY: all clean
+superclean: clean
+	rm -f dla_cpu_*.png dla_gpu_*.png
+
+.PHONY: all clean superclean
