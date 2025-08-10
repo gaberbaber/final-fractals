@@ -1,6 +1,7 @@
-#include <curand_kernel.h>
+//#include <curand_kernel.h>
 #include <cuda_runtime.h>
 #include <stdio.h>
+#include <stdint.h>
 
 //error check
 #define CUDA_CHECK(call) do { \
@@ -10,6 +11,37 @@
     exit(1); \
   } \
 } while (0)
+
+//new rng instead of curand (heavy init costs)
+// mutates the seedmix state within register
+__device__ __forceinline__ uint32_t xorshift32(uint32_t &s) {
+    s ^= s << 13;
+    s ^= s >> 17;
+    s ^= s << 5;
+    return s;
+}
+
+//gives each thread a different, nonzero starting state
+__device__ __forceinline__ uint32_t seed_mix(unsigned long long seed, int tid) {
+    uint32_t x = (uint32_t)(seed) ^ (0x9E3779B9u * (uint32_t)(tid + 1));
+    //hash scramble
+    x ^= x >> 16;
+    x *= 0x85EBCA6Bu;
+    x ^= x >> 13;
+    x *= 0xC2B2AE35u;
+    x ^= x >> 16;
+    if (x == 0) x = 1u;
+    return x;
+}
+
+__device__ __forceinline__ int rand4(uint32_t &s) {
+    return (int)((xorshift32(s) >> 24) & 3u);
+}
+
+__device__ __forceinline__ int randN(uint32_t &s, int n) {
+    return (int)(xorshift32(s) % (uint32_t)n);
+}
+
 
 //global cluster # counter
 __device__ int d_stick_counter; //seed is 1, collective clustered particles are 2, 3, ...
@@ -40,9 +72,11 @@ __global__ void dla_kernel(int*grid, int N, int NUM_PARTICLES, int MAX_STEPS, un
         return;
     }
 
+    /*
     //curand setup - cuda's on-device RNG
     curandState state;
     curand_init(seed, tid, 0, &state);
+    
 
     //spawn on the border
     int x, y;
@@ -55,6 +89,21 @@ __global__ void dla_kernel(int*grid, int N, int NUM_PARTICLES, int MAX_STEPS, un
         x = curand(&state) % N; y = N - 1; 
     }else{                  //left edge
         x = 0; y = curand(&state) % N;
+    }
+    */
+    
+    //register-only rng
+    uint32_t rng = seed_mix(seed, tid);
+    int x, y;
+    int side = rand4(rng);      //picks one of four edges
+    if (side == 0) {            //top edge
+        x = randN(rng, N);  y = 0; 
+    }else if (side == 1) {      //right edge
+        x = N - 1;          y = randN(rng, N); 
+    }else if (side == 2) {      //bottom edge
+        x = randN(rng, N);  y = N - 1; 
+    }else{                      //left edge
+        x = 0;              y = randN(rng, N);
     }
 
     //DEBUG: trying starting position right next to seed
@@ -76,7 +125,7 @@ __global__ void dla_kernel(int*grid, int N, int NUM_PARTICLES, int MAX_STEPS, un
         }
 
         //take a step
-        int d = curand(&state) & 3;
+        int d = rand4(rng);
         x += (d == 2) - (d == 3);        // +/-1 on x
         y += (d == 0) - (d == 1);        // +/-1 on y
 

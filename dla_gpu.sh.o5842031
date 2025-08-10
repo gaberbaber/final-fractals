@@ -2,29 +2,29 @@ CUDA devices visible: 1
 Using device 0: NVIDIA L40S (CC 8.9)
 
 ===== GPU DLA Test 1: N=101, Particles=25000, MaxSteps=50000 =====
-GPU DLA simulation time for Test 1: 0.002154 s
+GPU DLA simulation time for Test 1: 0.001778 s
 DEBUG: Center cell value after kernel: 1
-DEBUG: Total nonzero (stuck) particles after kernel: 183
-DEBUG: Max stick index (color scale): 183
+DEBUG: Total nonzero (stuck) particles after kernel: 164
+DEBUG: Max stick index (color scale): 164
 DLA PNG written to dla_gpu_101.png
 
 ===== GPU DLA Test 2: N=201, Particles=300000, MaxSteps=100000 =====
-GPU DLA simulation time for Test 2: 0.007900 s
+GPU DLA simulation time for Test 2: 0.007873 s
 DEBUG: Center cell value after kernel: 1
-DEBUG: Total nonzero (stuck) particles after kernel: 1459
-DEBUG: Max stick index (color scale): 1459
+DEBUG: Total nonzero (stuck) particles after kernel: 1330
+DEBUG: Max stick index (color scale): 1330
 DLA PNG written to dla_gpu_201.png
 
 ===== GPU DLA Test 3: N=401, Particles=2000000, MaxSteps=200000 =====
-GPU DLA simulation time for Test 3: 0.050956 s
+GPU DLA simulation time for Test 3: 0.045239 s
 DEBUG: Center cell value after kernel: 1
-DEBUG: Total nonzero (stuck) particles after kernel: 6389
-DEBUG: Max stick index (color scale): 6389
+DEBUG: Total nonzero (stuck) particles after kernel: 6062
+DEBUG: Max stick index (color scale): 6062
 DLA PNG written to dla_gpu_401.png
 
 ===== GPU DLA Test 4: N=801, Particles=12000000, MaxSteps=500000 =====
-GPU DLA simulation time for Test 4: 0.569730 s
+GPU DLA simulation time for Test 4: 0.572308 s
 DEBUG: Center cell value after kernel: 1
-DEBUG: Total nonzero (stuck) particles after kernel: 18696
-DEBUG: Max stick index (color scale): 18696
+DEBUG: Total nonzero (stuck) particles after kernel: 17449
+DEBUG: Max stick index (color scale): 17449
 DLA PNG written to dla_gpu_801.png
