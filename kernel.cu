@@ -45,6 +45,9 @@ __device__ __forceinline__ int randN(uint32_t &s, int n) {
 
 //global cluster # counter
 __device__ int d_stick_counter; //seed is 1, collective clustered particles are 2, 3, ...
+//global work counter for persistent threads
+__device__ int d_next_id;
+
 
 //cluster check with border check
 __device__ __forceinline__ bool near_cluster(const int* grid, int x, int y, int N) {
@@ -61,7 +64,6 @@ __device__ __forceinline__ bool near_cluster(const int* grid, int x, int y, int 
     if (y + 1 < N   && grid[(y+1) * N + x] != 0) {return true;}// down
     if (x > 0       && grid[y * N + (x-1)] != 0) {return true;}// left
     if (x + 1 < N   && grid[y * N + (x+1)] != 0) {return true;}// right
-
     return false;
 }
 
@@ -137,14 +139,67 @@ __global__ void dla_kernel(int*grid, int N, int NUM_PARTICLES, int MAX_STEPS, un
     
 }
 
+//new kernel that dynamically distributes work
+__global__ void dla_kernel2(int* grid, int N, int NUM_PARTICLES, int MAX_STEPS, unsigned long long seed) {
+    
+    //persistent work loop
+    while (true) {
+        //next particle id
+        int pid = atomicAdd(&d_next_id, 1);
+        if (pid >= NUM_PARTICLES) {
+            break; //all particles assigned
+        }
+
+        // per-particle rng seed (not per thread like prev)
+        uint32_t rng = seed_mix(seed, pid);
+
+        //border spawn
+        int x, y;
+        int side = rand4(rng);      //picks one of four edges
+        if (side == 0) {            //top edge
+            x = randN(rng, N);  y = 0; 
+        }else if (side == 1) {      //right edge
+            x = N - 1;          y = randN(rng, N); 
+        }else if (side == 2) {      //bottom edge
+            x = randN(rng, N);  y = N - 1; 
+        }else{                      //left edge
+            x = 0;              y = randN(rng, N);
+        }
+
+        //random walk
+        for (int steps = 0; steps < MAX_STEPS; steps++) {
+            if (near_cluster(grid, x, y, N)) {
+                int idx = y * N + x;
+                if (atomicCAS(&grid[idx], 0, 1) == 0) {
+                    int val = atomicAdd(&d_stick_counter, 1) + 1;
+                    grid[idx] = val;
+                    break;      //finish this particle
+                }
+            }
+            int d = rand4(rng);
+            x += (d == 2) - (d == 3);
+            y += (d == 0) - (d == 1);
+
+            if ((unsigned)x >= (unsigned)N || (unsigned)y >= (unsigned)N) {
+                break; //particle escape
+            }
+        }
+        //loop back and claim another pid
+    }
+}
+
 //host wrapper
 void dla(int* d_grid, int N, int NUM_PARTICLES, int MAX_STEPS, unsigned long long seed) {
+    //counter init
     int init = 1;
     CUDA_CHECK(cudaMemcpyToSymbol(d_stick_counter, &init, sizeof(int)));
-    
+    //work counter init
+    int zero = 0;
+    CUDA_CHECK(cudaMemcpyToSymbol(d_next_id, &zero, sizeof(int)));
+
     int threads = 256;
     int blocks = (NUM_PARTICLES + threads - 1) / threads;
-    dla_kernel<<<blocks, threads>>>(d_grid, N, NUM_PARTICLES, MAX_STEPS, seed);
+    dla_kernel2<<<blocks, threads>>>(d_grid, N, NUM_PARTICLES, MAX_STEPS, seed);
     CUDA_CHECK(cudaGetLastError());       // catch invalid launch / invalid device function
     CUDA_CHECK(cudaDeviceSynchronize());  // catch runtime errors
 }
